@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: visprompter
+Version: 0.1.0
+Summary: Prompt any HuggingFace LM and visualize, layer by layer, how the answer forms.
+Requires-Python: >=3.10
+Requires-Dist: torch>=2.1
+Requires-Dist: transformers>=4.44
+Provides-Extra: serve
+Requires-Dist: fastapi>=0.111; extra == "serve"
+Requires-Dist: uvicorn[standard]>=0.30; extra == "serve"
+Provides-Extra: pg
+Requires-Dist: psycopg[binary]>=3.1; extra == "pg"

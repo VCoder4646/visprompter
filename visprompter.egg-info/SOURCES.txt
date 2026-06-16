@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+visprompter/__init__.py
+visprompter/api.py
+visprompter/capture.py
+visprompter/cli.py
+visprompter/discover.py
+visprompter/store.py
+visprompter.egg-info/PKG-INFO
+visprompter.egg-info/SOURCES.txt
+visprompter.egg-info/dependency_links.txt
+visprompter.egg-info/entry_points.txt
+visprompter.egg-info/requires.txt
+visprompter.egg-info/top_level.txt
+visprompter/ui/static/index.html
+visprompter/ui/static/assets/index-v7Ew3ZW5.js

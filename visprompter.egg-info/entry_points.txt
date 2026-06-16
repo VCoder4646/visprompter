@@ -1,0 +1,2 @@
+[console_scripts]
+visprompter = visprompter.cli:main

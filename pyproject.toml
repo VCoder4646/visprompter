@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visprompter"
+version = "0.1.0"
+description = "Prompt any HuggingFace LM and visualize, layer by layer, how the answer forms."
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.1",
+    "transformers>=4.44",
+]
+
+[project.optional-dependencies]
+serve = ["fastapi>=0.111", "uvicorn[standard]>=0.30"]   # for `visprompter ui` / `visprompter serve`
+pg = ["psycopg[binary]>=3.1"]                            # optional Postgres store
+
+[project.scripts]
+visprompter = "visprompter.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["visprompter*"]
+
+[tool.setuptools.package-data]
+visprompter = ["ui/static/**/*"]
