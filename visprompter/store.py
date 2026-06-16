@@ -1,22 +1,79 @@
-"""Pluggable storage for OmniVis sessions.
+"""Pluggable storage for VisPrompter sessions.
 
-Default: SQLite (zero-setup, fully standalone). Optional: Postgres (share with a
-bigger stack). Both expose the same Python-level interface so the API/UI don't
-care which backend is used. Arrays are JSON in SQLite, native arrays in Postgres.
+Three backends, one interface:
+  - MemoryStore  : pure RAM, no file at all   (open_store(None) or ":memory:")
+  - SQLiteStore  : a single local .db file, auto-created, zero setup  (default)
+  - PostgresStore: optional, share with a bigger stack  (postgresql://... DSN)
+
+The store is just the hand-off between inference capture and the web UI — it is
+never a separate server. The UI/API don't care which backend is used.
 """
 from __future__ import annotations
 
 import json
-from typing import List, Optional
+import os
 
 METRICS = ("residual_delta", "hidden_norm", "attn_entropy")
+_METRIC_COL = {"residual_delta": 2, "hidden_norm": 3, "attn_entropy": 4}  # index into layer_rows tuple
 
 
-def open_store(uri: str):
-    """uri: a postgresql://... DSN -> PostgresStore, else a file path -> SQLiteStore."""
+def open_store(uri=None):
+    """None / ":memory:" -> MemoryStore; postgresql://... -> PostgresStore;
+    anything else is treated as a SQLite file path (parent dirs auto-created)."""
+    if uri in (None, "", ":memory:", "memory"):
+        return MemoryStore()
     if uri.startswith("postgres://") or uri.startswith("postgresql://"):
         return PostgresStore(uri)
+    d = os.path.dirname(os.path.abspath(uri))
+    if d:
+        os.makedirs(d, exist_ok=True)
     return SQLiteStore(uri)
+
+
+# ----------------------------- in-memory (no file) -----------------------------
+class MemoryStore:
+    """Keeps everything in RAM — nothing is written to disk. Ideal for a live
+    `visprompter serve` session where you don't need persistence."""
+    def __init__(self):
+        self._s = {}        # session_id -> written session dict
+        self._order = []
+
+    def init_schema(self):
+        pass
+
+    def write_session(self, s):
+        if s["session_id"] not in self._s:
+            self._order.insert(0, s["session_id"])
+        self._s[s["session_id"]] = s
+
+    def list_sessions(self):
+        return [{"session_id": s["session_id"], "prompt": s["prompt"], "model_id": s["model_id"],
+                 "n_layers": s["n_layers"], "n_prompt_tok": s["n_prompt"], "n_gen_tok": s["n_gen"],
+                 "generated_text": s["gen_text"], "created_at": None}
+                for sid in self._order for s in [self._s[sid]]]
+
+    def get_session(self, sid):
+        s = self._s.get(sid)
+        if not s:
+            return None
+        return {"session_id": s["session_id"], "prompt": s["prompt"], "model_id": s["model_id"],
+                "n_layers": s["n_layers"], "n_prompt_tok": s["n_prompt"], "n_gen_tok": s["n_gen"],
+                "generated_text": s["gen_text"],
+                "tokens": [{"token_pos": p, "token_str": ts, "token_id": ti, "is_prompt": bool(b)}
+                           for (p, ts, ti, b) in s["tokens"]]}
+
+    def get_surface(self, sid, metric):
+        s = self._s.get(sid)
+        col = _METRIC_COL[metric]
+        rows = [] if not s else [{"layer_idx": r[1], "token_pos": r[0], "v": r[col]} for r in s["layer_rows"]]
+        return _surface_payload(metric, rows)
+
+    def get_logitlens(self, sid, token_pos):
+        s = self._s.get(sid)
+        if not s:
+            return []
+        return [{"layer_idx": l, "top_token": tt, "top_prob": tp, "topk_tokens": tks, "topk_probs": tps}
+                for (p, l, tt, tp, tks, tps) in s["lens_rows"] if p == token_pos]
 
 
 # ----------------------------- SQLite -----------------------------

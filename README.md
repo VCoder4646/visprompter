@@ -102,7 +102,32 @@ final norm discovered by name **and matched to the lm_head's hidden dim** (so it
 won't grab a wrong-sized sub-norm in matformer/multimodal models). Works on
 Llama/Qwen/Gemma/GPT-2/etc.
 
-## Storage
+## Storage — there's no database server
 
-Default **SQLite** (`./visprompter.db`, zero setup). Pass a `postgresql://…` DSN as
-the store to share with a larger stack. The UI reads whichever you point it at.
+VisPrompter captures per-(token, layer) signals during inference and the UI
+*queries them back* (the 3D surface, logit lens, and replay all read stored data).
+The "store" is just that hand-off between the model and the browser — **never a
+separate server you have to run**. Three options, easiest first:
+
+| Store | What it is | When |
+|---|---|---|
+| **in-memory** | pure RAM, **no file** | live `serve` you don't need to keep |
+| **SQLite** (default) | one local `.db` file, **auto-created** | keep sessions to revisit/compare |
+| Postgres | `postgresql://…` DSN | share with a larger stack |
+
+```bash
+# nothing on disk — everything stays in RAM:
+visprompter serve --model <id> --port 9000 --ephemeral
+
+# default: auto-creates ./visprompter.db (parent dirs made for you):
+visprompter serve --model <id> --port 9000
+visprompter serve --model <id> --port 9000 --store ~/vp/runs.db
+
+# library — same choices:
+VisPrompterCapture.from_pretrained("<id>", store=None)            # in-memory
+VisPrompterCapture.from_pretrained("<id>", store="./vp.db")       # SQLite file
+VisPrompterCapture.from_pretrained("<id>", store="postgresql://…")
+```
+
+SQLite is built into Python, so the package is fully self-contained: `pip install`,
+run, done — the `.db` file appears on its own (or use `--ephemeral` for none).

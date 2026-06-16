@@ -39,7 +39,7 @@ def cmd_serve(args):
     import uvicorn
     from .api import create_app
     from .capture import OmniVisCapture
-    store = open_store(args.store)
+    store = open_store(None if args.ephemeral else args.store)
     cap = OmniVisCapture.from_pretrained(args.model, store=store, hf_token=os.environ.get("HF_TOKEN"))
     app = create_app(store, capture=cap)
     print(f"VisPrompter (live inference) at http://0.0.0.0:{args.port}  model: {args.model}")
@@ -66,6 +66,8 @@ def main():
     s.add_argument("--model", required=True)
     s.add_argument("--port", type=int, default=9000)
     s.add_argument("--host", default="0.0.0.0")
+    s.add_argument("--ephemeral", action="store_true",
+                   help="keep everything in RAM — write no .db file at all")
     _add_store(s); s.set_defaults(fn=cmd_serve)
 
     args = ap.parse_args()
